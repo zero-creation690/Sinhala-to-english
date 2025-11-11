@@ -2,6 +2,11 @@ import os
 import logging
 from pathlib import Path
 import asyncio
+
+# Configure FFmpeg before importing moviepy
+import imageio_ffmpeg as ffmpeg
+os.environ["IMAGEIO_FFMPEG_EXE"] = ffmpeg.get_ffmpeg_exe()
+
 from pyrogram import Client, filters
 from pyrogram.types import Message
 import speech_recognition as sr
@@ -111,7 +116,7 @@ def analyze_voice_characteristics(audio_path: str) -> dict:
         
     except Exception as e:
         logger.warning(f"Voice analysis failed: {e}, using default")
-        return {'voice_type': 'male_hero', 'confidence': 0.5}
+        return {'voice_type': 'male_hero', 'confidence': 0.5, 'description': 'Male Lead'}
 
 def classify_character(pitch, energy, tempo, brightness, zcr):
     """Classify character type based on voice features"""
@@ -312,10 +317,13 @@ def generate_professional_voice(text: str, output_path: str, voice_profile: dict
     except Exception as e:
         logger.error(f"Voice generation error: {e}")
         # Fallback to basic TTS
-        tts = gTTS(text=text, lang='si', slow=False)
-        tts.save(output_path.replace('.wav', '.mp3'))
-        audio = AudioSegment.from_mp3(output_path.replace('.wav', '.mp3'))
-        audio.export(output_path, format='wav')
+        try:
+            tts = gTTS(text=text, lang='si', slow=False)
+            tts.save(output_path.replace('.wav', '.mp3'))
+            audio = AudioSegment.from_mp3(output_path.replace('.wav', '.mp3'))
+            audio.export(output_path, format='wav')
+        except Exception as fallback_error:
+            logger.error(f"Fallback TTS also failed: {fallback_error}")
 
 async def process_movie_dubbing(message: Message):
     """Professional movie dubbing pipeline"""
@@ -406,14 +414,17 @@ async def process_movie_dubbing(message: Message):
                     "👤 Current: {3}".format(
                         i+1, min(20, total_segments), 
                         character_count, 
-                        character_profile['description']
+                        character_profile.get('description', 'Unknown')
                     )
                 )
             
             # Cleanup
-            os.remove(segment_path)
-            if os.path.exists(dubbed_path):
-                os.remove(dubbed_path)
+            try:
+                os.remove(segment_path)
+                if os.path.exists(dubbed_path):
+                    os.remove(dubbed_path)
+            except:
+                pass
         
         await status_msg.edit_text(
             "🎬 **Professional Movie Dubbing**\n\n"
@@ -506,7 +517,7 @@ async def process_movie_dubbing(message: Message):
                 pass
                 
     except Exception as e:
-        logger.error(f"Movie dubbing error: {e}")
+        logger.error(f"Movie dubbing error: {e}", exc_info=True)
         await status_msg.edit_text(
             f"❌ **Error during dubbing:**\n\n{str(e)}\n\n"
             f"Please ensure:\n"
@@ -605,7 +616,13 @@ def main():
     logger.info("🎬 Starting Professional Movie Dubbing Bot")
     logger.info("🎭 100+ Character Voice Profiles Loaded")
     logger.info("🇱🇰 Modern Sinhala Translation Active")
+    ffmpeg_path = os.environ.get('IMAGEIO_FFMPEG_EXE', 'Not set')
+    logger.info(f"✅ FFmpeg configured: {ffmpeg_path}")
+    
+    if ffmpeg_path == 'Not set':
+        logger.warning("⚠️ FFmpeg not properly configured!")
+    
     app.run()
 
 if __name__ == "__main__":
-    main()
+    main(
