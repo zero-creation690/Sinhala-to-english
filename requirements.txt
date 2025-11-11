@@ -4,3 +4,9 @@ SpeechRecognition
 googletrans==4.0.0-rc1
 gTTS
 pydub
+moviepy
+numpy
+scipy
+librosa
+soundfile
+requests
