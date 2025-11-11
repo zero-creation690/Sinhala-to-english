@@ -1,5 +1,5 @@
 FROM python:3.11-slim
-​WORKDIR /app
+WORKDIR /app
 ​Install system dependencies including ffmpeg
 ​RUN apt-get update && apt-get install -y 
 ffmpeg 
